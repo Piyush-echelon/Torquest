@@ -4,7 +4,7 @@ import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/botto
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 
-export const DetailSheet = forwardRef(({ torrent, colors, onClose }, ref) => {
+export const DetailSheet = forwardRef(({ torrent, colors, onClose, onDownload }, ref) => {
   const renderBackdrop = useCallback(
     (props) => (
       <BottomSheetBackdrop
@@ -37,6 +37,12 @@ export const DetailSheet = forwardRef(({ torrent, colors, onClose }, ref) => {
     onClose();
   };
 
+  const handleDownloadPress = () => {
+    if (onDownload) {
+      onDownload(torrent);
+    }
+  };
+
   if (!torrent) return null;
 
   const styles = createStyles(colors);
@@ -51,7 +57,7 @@ export const DetailSheet = forwardRef(({ torrent, colors, onClose }, ref) => {
     <BottomSheet
       ref={ref}
       index={-1}
-      snapPoints={['75%']}
+      snapPoints={['85%']}
       enablePanDownToClose
       backdropComponent={renderBackdrop}
       backgroundStyle={styles.sheetBackground}
@@ -109,7 +115,7 @@ export const DetailSheet = forwardRef(({ torrent, colors, onClose }, ref) => {
           <View style={styles.magnetSection}>
             <Text style={styles.magnetLabel}>MAGNET LINK</Text>
             <View style={styles.magnetBox}>
-              <Text style={styles.magnetText} numberOfLines={3}>
+              <Text style={styles.magnetText} numberOfLines={2}>
                 {torrent.magnet}
               </Text>
             </View>
@@ -117,14 +123,20 @@ export const DetailSheet = forwardRef(({ torrent, colors, onClose }, ref) => {
         )}
 
         <View style={styles.actions}>
-          <TouchableOpacity style={[styles.btn, styles.primaryBtn]} onPress={handleOpenMagnet}>
-            <Ionicons name="magnet" size={20} color="#fff" />
-            <Text style={styles.primaryBtnText}>Open Magnet</Text>
+          <TouchableOpacity style={[styles.btn, styles.primaryBtn]} onPress={handleDownloadPress}>
+            <Ionicons name="download" size={20} color="#fff" />
+            <Text style={styles.primaryBtnText}>Download</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.btn, styles.secondaryBtn]} onPress={handleCopyMagnet}>
-            <Ionicons name="copy-outline" size={20} color={colors.systemBlue} />
-            <Text style={styles.secondaryBtnText}>Copy Link</Text>
-          </TouchableOpacity>
+          <View style={styles.secondaryActions}>
+            <TouchableOpacity style={[styles.btn, styles.secondaryBtn, { flex: 1 }]} onPress={handleOpenMagnet}>
+              <Ionicons name="magnet" size={20} color={colors.systemBlue} />
+              <Text style={styles.secondaryBtnText}>Magnet</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.btn, styles.secondaryBtn, { flex: 1 }]} onPress={handleCopyMagnet}>
+              <Ionicons name="copy-outline" size={20} color={colors.systemBlue} />
+              <Text style={styles.secondaryBtnText}>Copy Link</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </BottomSheetView>
     </BottomSheet>
@@ -154,7 +166,7 @@ const createStyles = (colors) => StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   statBox: {
     flex: 1,
@@ -178,7 +190,7 @@ const createStyles = (colors) => StyleSheet.create({
   infoGroup: {
     backgroundColor: colors.secondaryBackground,
     borderRadius: 10,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   infoRow: {
     flexDirection: 'row',
@@ -206,7 +218,7 @@ const createStyles = (colors) => StyleSheet.create({
     maxWidth: '60%',
   },
   magnetSection: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   magnetLabel: {
     fontSize: 12,
@@ -228,8 +240,12 @@ const createStyles = (colors) => StyleSheet.create({
     marginTop: 'auto',
     gap: 12,
   },
+  secondaryActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
   btn: {
-    height: 50,
+    height: 48,
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -249,7 +265,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   secondaryBtnText: {
     color: colors.systemBlue,
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '600',
   },
 });

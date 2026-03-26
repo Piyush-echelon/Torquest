@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -10,10 +10,13 @@ import {
   Keyboard,
   StatusBar,
   ScrollView,
+  Appearance,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { darkColors, lightColors } from './src/theme/colors';
 import { searchTorrents } from './src/services/api';
 import { TorrentCard } from './src/components/TorrentCard';
@@ -32,21 +35,47 @@ const CATEGORIES = [
 
 function MainScreen() {
   const insets = useSafeAreaInsets();
-  const [theme, setTheme] = useState('dark');
+  
+  // State
+  const [activeTab, setActiveTab] = useState('search'); // 'search' or 'downloads'
+  const [themeMode, setThemeMode] = useState('system'); // 'light', 'dark', 'system'
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedTorrent, setSelectedTorrent] = useState(null);
-  
+  const [downloads, setDownloads] = useState([]);
+
+  // Compute actual colors based on mode and system appearance
+  const systemColorScheme = Appearance.useColorScheme();
+  const theme = useMemo(() => {
+    if (themeMode === 'system') return systemColorScheme || 'dark';
+    return themeMode;
+  }, [themeMode, systemColorScheme]);
+
   const colors = useMemo(() => (theme === 'dark' ? darkColors : lightColors), [theme]);
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
 
   const sheetRef = useRef(null);
   const settingsRef = useRef(null);
 
-  const toggleTheme = () => {
-    setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
+  // Load saved theme
+  useEffect(() => {
+    const loadTheme = async () => {
+      try {
+        const saved = await AsyncStorage.getItem('torquest_theme_mode');
+        if (saved) setThemeMode(saved);
+      } catch (e) {}
+    };
+    loadTheme();
+  }, []);
+
+  // Save theme
+  const handleSetTheme = async (mode) => {
+    setThemeMode(mode);
+    try {
+      await AsyncStorage.setItem('torquest_theme_mode', mode);
+    } catch (e) {}
   };
 
   const handleSearch = async () => {
@@ -60,19 +89,40 @@ function MainScreen() {
     setLoading(false);
   };
 
-  const handleClear = () => {
-    setQuery('');
-    setResults([]);
-  };
+  const handleDownload = useCallback((torrent) => {
+    // Add to mock downloads
+    const newDownload = {
+      ...torrent,
+      progress: 0,
+      status: 'downloading',
+      speed: '0 KB/s',
+      addedAt: Date.now(),
+    };
+    setDownloads(prev => [newDownload, ...prev]);
+    setActiveTab('downloads');
+    sheetRef.current?.close();
+    
+    // Simple simulation of progress
+    const interval = setInterval(() => {
+      setDownloads(prev => prev.map(d => {
+        if (d.id === torrent.id && d.progress < 100) {
+          const nextProgress = Math.min(d.progress + Math.random() * 5, 100);
+          return { 
+            ...d, 
+            progress: nextProgress, 
+            status: nextProgress === 100 ? 'completed' : 'downloading',
+            speed: nextProgress === 100 ? '0 KB/s' : `${(Math.random() * 5).toFixed(1)} MB/s`
+          };
+        }
+        return d;
+      }));
+    }, 2000);
+  }, []);
 
   const openDetail = useCallback((torrent) => {
     setSelectedTorrent(torrent);
     sheetRef.current?.expand();
   }, []);
-
-  const openSettings = () => {
-    settingsRef.current?.expand();
-  };
 
   return (
     <View style={styles.container}>
@@ -81,108 +131,158 @@ function MainScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <Text style={styles.largeTitle}>Search</Text>
+          <Text style={styles.largeTitle}>{activeTab === 'search' ? 'Search' : 'Downloads'}</Text>
           <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.actionBtn} onPress={toggleTheme}>
+            <TouchableOpacity 
+              style={styles.actionBtn} 
+              onPress={() => handleSetTheme(theme === 'dark' ? 'light' : 'dark')}
+            >
               <Ionicons 
                 name={theme === 'dark' ? "sunny-outline" : "moon-outline"} 
                 size={20} 
                 color={colors.systemBlue} 
               />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionBtn} onPress={openSettings}>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => settingsRef.current?.expand()}>
               <Ionicons name="ellipsis-horizontal" size={20} color={colors.systemBlue} />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <View style={styles.searchBox}>
-            <Ionicons name="search" size={18} color={colors.textSecondary} style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search"
-              placeholderTextColor={colors.textSecondary}
-              value={query}
-              onChangeText={setQuery}
-              onSubmitEditing={handleSearch}
-              returnKeyType="search"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {query.length > 0 && (
-              <TouchableOpacity onPress={handleClear} style={styles.clearBtn}>
-                <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
+        {activeTab === 'search' && (
+          <>
+            {/* Search Bar */}
+            <View style={styles.searchContainer}>
+              <View style={styles.searchBox}>
+                <Ionicons name="search" size={18} color={colors.textSecondary} style={styles.searchIcon} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search"
+                  placeholderTextColor={colors.textSecondary}
+                  value={query}
+                  onChangeText={setQuery}
+                  onSubmitEditing={handleSearch}
+                  returnKeyType="search"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                {query.length > 0 && (
+                  <TouchableOpacity onPress={() => {setQuery(''); setResults([]);}} style={styles.clearBtn}>
+                    <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
 
-        {/* Categories */}
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoriesContent}
-          style={styles.categoriesScroll}
-        >
-          {CATEGORIES.map((cat) => (
-            <TouchableOpacity
-              key={cat.id}
-              style={[styles.catPill, category === cat.id && styles.catPillActive]}
-              onPress={() => setCategory(cat.id)}
-            >
-              <Text style={[styles.catText, category === cat.id && styles.catTextActive]}>
-                {cat.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+            {/* Categories */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesContent}>
+              {CATEGORIES.map((cat) => (
+                <TouchableOpacity
+                  key={cat.id}
+                  style={[styles.catPill, category === cat.id && styles.catPillActive]}
+                  onPress={() => setCategory(cat.id)}
+                >
+                  <Text style={[styles.catText, category === cat.id && styles.catTextActive]}>
+                    {cat.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </>
+        )}
       </View>
 
       {/* Main Content */}
       <View style={styles.content}>
-        {loading ? (
-          <View style={styles.centerBox}>
-            <ActivityIndicator size="large" color={colors.systemBlue} />
-            <Text style={styles.loadingText}>Searching sources...</Text>
-          </View>
-        ) : results.length > 0 ? (
-          <FlatList
-            data={results}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.listContent}
-            renderItem={({ item, index }) => (
-              <TorrentCard
-                torrent={item}
-                onPress={() => openDetail(item)}
-                isFirst={index === 0}
-                isLast={index === results.length - 1}
-                colors={colors}
-              />
-            )}
-          />
+        {activeTab === 'search' ? (
+          loading ? (
+            <View style={styles.centerBox}>
+              <ActivityIndicator size="large" color={colors.systemBlue} />
+              <Text style={styles.loadingText}>Searching sources...</Text>
+            </View>
+          ) : results.length > 0 ? (
+            <FlatList
+              data={results}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.listContent}
+              renderItem={({ item, index }) => (
+                <TorrentCard
+                  torrent={item}
+                  onPress={() => openDetail(item)}
+                  isFirst={index === 0}
+                  isLast={index === results.length - 1}
+                  colors={colors}
+                />
+              )}
+            />
+          ) : (
+            <View style={styles.centerBox}>
+              <Ionicons name="search" size={64} color={colors.systemGray4} style={{ marginBottom: 16 }} />
+              <Text style={styles.emptyText}>Find torrents across reliable sources</Text>
+            </View>
+          )
         ) : (
-          <View style={styles.centerBox}>
-            <Ionicons name="search" size={64} color={colors.systemGray4} style={{ marginBottom: 16 }} />
-            <Text style={styles.emptyText}>Find torrents across reliable sources</Text>
-          </View>
+          /* Downloads Tab */
+          downloads.length > 0 ? (
+            <FlatList
+              data={downloads}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.listContent}
+              renderItem={({ item }) => (
+                <View style={styles.downloadCard}>
+                  <View style={styles.downloadInfo}>
+                    <Text style={styles.downloadTitle} numberOfLines={1}>{item.title}</Text>
+                    <Text style={styles.downloadMeta}>{item.size_str} • {item.speed}</Text>
+                  </View>
+                  <View style={styles.progressContainer}>
+                    <View style={styles.progressBar}>
+                      <View style={[styles.progressFill, { width: `${item.progress}%`, backgroundColor: item.status === 'completed' ? colors.systemGreen : colors.systemBlue }]} />
+                    </View>
+                    <Text style={styles.progressText}>{Math.round(item.progress)}%</Text>
+                  </View>
+                </View>
+              )}
+            />
+          ) : (
+            <View style={styles.centerBox}>
+              <Ionicons name="cloud-download-outline" size={64} color={colors.systemGray4} style={{ marginBottom: 16 }} />
+              <Text style={styles.emptyText}>No active downloads</Text>
+            </View>
+          )
         )}
       </View>
 
-      {/* Detail Bottom Sheet */}
+      {/* Bottom Tabs */}
+      <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+        <TouchableOpacity 
+          style={styles.tabItem} 
+          onPress={() => setActiveTab('search')}
+        >
+          <Ionicons name="search" size={24} color={activeTab === 'search' ? colors.systemBlue : colors.textTertiary} />
+          <Text style={[styles.tabText, activeTab === 'search' && styles.tabTextActive]}>Search</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.tabItem} 
+          onPress={() => setActiveTab('downloads')}
+        >
+          <Ionicons name="download" size={24} color={activeTab === 'downloads' ? colors.systemBlue : colors.textTertiary} />
+          <Text style={[styles.tabText, activeTab === 'downloads' && styles.tabTextActive]}>Downloads</Text>
+        </TouchableOpacity>
+      </View>
+
       <DetailSheet
         ref={sheetRef}
         torrent={selectedTorrent}
         colors={colors}
         onClose={() => setSelectedTorrent(null)}
+        onDownload={handleDownload}
       />
 
-      {/* Settings Bottom Sheet */}
       <SettingsSheet
         ref={settingsRef}
         colors={colors}
-        onClose={() => {}}
+        themeMode={themeMode}
+        onSetTheme={handleSetTheme}
       />
     </View>
   );
@@ -285,7 +385,7 @@ const createStyles = (colors, insets) => StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingBottom: 40,
+    paddingBottom: 20,
   },
   centerBox: {
     flex: 1,
@@ -303,4 +403,66 @@ const createStyles = (colors, insets) => StyleSheet.create({
     fontSize: 15,
     textAlign: 'center',
   },
+  tabBar: {
+    flexDirection: 'row',
+    borderTopWidth: 0.5,
+    borderTopColor: colors.separator,
+    backgroundColor: colors.background,
+    paddingTop: 8,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  tabText: {
+    fontSize: 10,
+    color: colors.textTertiary,
+    fontWeight: '500',
+  },
+  tabTextActive: {
+    color: colors.systemBlue,
+  },
+  downloadCard: {
+    backgroundColor: colors.secondaryBackground,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  downloadInfo: {
+    marginBottom: 8,
+  },
+  downloadTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  downloadMeta: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  progressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  progressBar: {
+    flex: 1,
+    height: 4,
+    backgroundColor: colors.separator,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  progressText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    width: 30,
+    textAlign: 'right',
+  }
 });
