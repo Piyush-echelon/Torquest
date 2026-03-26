@@ -332,23 +332,30 @@ function renderDownloads(downloads) {
     return;
   }
 
-  // Preserve existing cards if possible to avoid flicker, or just redraw
   downloadsContainer.innerHTML = '';
   
   downloads.forEach(dl => {
     const card = document.createElement('div');
-    card.className = `download-card ${dl.done ? 'completed' : ''}`;
+    card.className = `download-card ${dl.done ? 'completed' : ''} ${dl.paused ? 'paused' : ''}`;
     card.innerHTML = `
       <div class="download-info">
         <div class="download-title-wrap">
           <div class="download-title" title="${escapeHtml(dl.title)}">${escapeHtml(dl.title)}</div>
           <div class="download-meta">
+            <span class="download-status-badge ${dl.done ? 'completed' : (dl.paused ? 'paused' : '')}">
+              ${dl.done ? 'Finished' : (dl.paused ? 'Paused' : 'Downloading')}
+            </span>
             <span>${dl.size}</span>
             <span>${dl.numPeers} peers</span>
-            <span>${dl.done ? 'Finished' : dl.timeRemaining}</span>
+            <span>${dl.done ? '' : dl.timeRemaining}</span>
           </div>
         </div>
         <div class="download-controls">
+          ${!dl.done ? `
+          <button class="control-btn" title="${dl.paused ? 'Resume' : 'Pause'}" onclick="window.togglePause('${dl.id}', ${dl.paused})">
+            <i class="fas fa-${dl.paused ? 'play' : 'pause'}"></i>
+          </button>
+          ` : ''}
           <button class="control-btn" title="Open Folder" onclick="window.electronAPI.openDownloadFolder()">
             <i class="fas fa-folder-open"></i>
           </button>
@@ -359,7 +366,7 @@ function renderDownloads(downloads) {
       </div>
       <div class="download-progress-wrap">
         <div class="progress-bar-bg">
-          <div class="progress-bar-fill" style="width: ${dl.progress}%"></div>
+          <div class="progress-bar-fill" style="width: ${dl.progress}%; background: ${dl.done ? 'var(--system-green)' : (dl.paused ? 'var(--system-orange)' : 'var(--system-blue)')}"></div>
         </div>
         <div class="progress-stats">
           <span>${dl.progress}%</span>
@@ -371,7 +378,16 @@ function renderDownloads(downloads) {
   });
 }
 
-// Global helper for remove button (since we use onclick in template)
+// Global helpers for buttons (since we use onclick in template)
+window.togglePause = async (id, isPaused) => {
+  if (isPaused) {
+    await window.electronAPI.resumeDownload(id);
+  } else {
+    await window.electronAPI.pauseDownload(id);
+  }
+  updateDownloadsUI();
+};
+
 window.removeDownload = async (id) => {
   if (confirm('Are you sure you want to remove this download?')) {
     await window.electronAPI.removeDownload(id);

@@ -385,10 +385,11 @@ ipcMain.handle('get-downloads', async () => {
       id: id,
       title: data.title,
       progress: (t.progress * 100).toFixed(1),
-      downloadSpeed: formatSpeed(t.downloadSpeed),
-      uploadSpeed: formatSpeed(t.uploadSpeed),
-      timeRemaining: formatTime(t.timeRemaining),
-      numPeers: t.numPeers,
+      downloadSpeed: data.paused ? '0 B/s' : formatSpeed(t.downloadSpeed),
+      uploadSpeed: data.paused ? '0 B/s' : formatSpeed(t.uploadSpeed),
+      timeRemaining: data.paused ? 'Paused' : formatTime(t.timeRemaining),
+      numPeers: data.paused ? 0 : t.numPeers,
+      paused: !!data.paused,
       done: t.done,
       path: t.path,
       infoHash: t.infoHash,
@@ -402,9 +403,28 @@ ipcMain.handle('remove-download', async (event, magnet) => {
   if (!wtClient) await initWebTorrent();
   const data = activeDownloads.get(magnet);
   if (data) {
-    data.torrent.pause();
     data.torrent.destroy();
     activeDownloads.delete(magnet);
+    return true;
+  }
+  return false;
+});
+
+ipcMain.handle('pause-download', async (event, magnet) => {
+  const data = activeDownloads.get(magnet);
+  if (data) {
+    data.torrent.pause();
+    data.paused = true;
+    return true;
+  }
+  return false;
+});
+
+ipcMain.handle('resume-download', async (event, magnet) => {
+  const data = activeDownloads.get(magnet);
+  if (data) {
+    data.torrent.resume();
+    data.paused = false;
     return true;
   }
   return false;

@@ -11,6 +11,7 @@ import {
   StatusBar,
   ScrollView,
   Appearance,
+  Alert,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -37,8 +38,8 @@ function MainScreen() {
   const insets = useSafeAreaInsets();
   
   // State
-  const [activeTab, setActiveTab] = useState('search'); // 'search' or 'downloads'
-  const [themeMode, setThemeMode] = useState('system'); // 'light', 'dark', 'system'
+  const [activeTab, setActiveTab] = useState('search');
+  const [themeMode, setThemeMode] = useState('system');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
   const [results, setResults] = useState([]);
@@ -46,7 +47,7 @@ function MainScreen() {
   const [selectedTorrent, setSelectedTorrent] = useState(null);
   const [downloads, setDownloads] = useState([]);
 
-  // Compute actual colors based on mode and system appearance
+  // Compute actual colors
   const systemColorScheme = Appearance.useColorScheme();
   const theme = useMemo(() => {
     if (themeMode === 'system') return systemColorScheme || 'dark';
@@ -90,34 +91,61 @@ function MainScreen() {
   };
 
   const handleDownload = useCallback((torrent) => {
-    // Add to mock downloads
+    // Check if already downloading
+    if (downloads.some(d => d.id === torrent.id)) {
+      Alert.alert('Download', 'This torrent is already in your download list.');
+      return;
+    }
+
     const newDownload = {
       ...torrent,
       progress: 0,
       status: 'downloading',
       speed: '0 KB/s',
       addedAt: Date.now(),
+      paused: false,
     };
     setDownloads(prev => [newDownload, ...prev]);
     setActiveTab('downloads');
     sheetRef.current?.close();
-    
-    // Simple simulation of progress
+  }, [downloads]);
+
+  // Simulated Download Progress
+  useEffect(() => {
     const interval = setInterval(() => {
       setDownloads(prev => prev.map(d => {
-        if (d.id === torrent.id && d.progress < 100) {
-          const nextProgress = Math.min(d.progress + Math.random() * 5, 100);
+        if (!d.paused && d.progress < 100) {
+          const nextProgress = Math.min(d.progress + Math.random() * 2, 100);
           return { 
             ...d, 
             progress: nextProgress, 
             status: nextProgress === 100 ? 'completed' : 'downloading',
-            speed: nextProgress === 100 ? '0 KB/s' : `${(Math.random() * 5).toFixed(1)} MB/s`
+            speed: nextProgress === 100 ? '0 KB/s' : `${(Math.random() * 5 + 1).toFixed(1)} MB/s`
           };
         }
         return d;
       }));
     }, 2000);
+    return () => clearInterval(interval);
   }, []);
+
+  const togglePause = (id) => {
+    setDownloads(prev => prev.map(d => {
+      if (d.id === id && d.status !== 'completed') {
+        return { ...d, paused: !d.paused, speed: !d.paused ? '0 KB/s' : d.speed };
+      }
+      return d;
+    }));
+  };
+
+  const removeDownload = (id) => {
+    Alert.alert('Remove Download', 'Are you sure you want to remove this download?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: () => {
+        setDownloads(prev => prev.filter(d => d.id !== id));
+      }},
+    ]);
+  };
 
   const openDetail = useCallback((torrent) => {
     setSelectedTorrent(torrent);
@@ -151,7 +179,6 @@ function MainScreen() {
 
         {activeTab === 'search' && (
           <>
-            {/* Search Bar */}
             <View style={styles.searchContainer}>
               <View style={styles.searchBox}>
                 <Ionicons name="search" size={18} color={colors.textSecondary} style={styles.searchIcon} />
@@ -174,7 +201,6 @@ function MainScreen() {
               </View>
             </View>
 
-            {/* Categories */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesContent}>
               {CATEGORIES.map((cat) => (
                 <TouchableOpacity
@@ -229,14 +255,42 @@ function MainScreen() {
               keyExtractor={(item) => item.id}
               contentContainerStyle={styles.listContent}
               renderItem={({ item }) => (
-                <View style={styles.downloadCard}>
+                <View style={[styles.downloadCard, item.paused && styles.downloadCardPaused]}>
                   <View style={styles.downloadInfo}>
-                    <Text style={styles.downloadTitle} numberOfLines={1}>{item.title}</Text>
-                    <Text style={styles.downloadMeta}>{item.size_str} • {item.speed}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.downloadTitle} numberOfLines={1}>{item.title}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <View style={[
+                          styles.statusBadge, 
+                          { backgroundColor: item.status === 'completed' ? colors.systemGreen : (item.paused ? colors.systemOrange : colors.systemBlue) }
+                        ]}>
+                          <Text style={styles.statusBadgeText}>
+                            {item.status === 'completed' ? 'Finished' : (item.paused ? 'Paused' : 'Downloading')}
+                          </Text>
+                        </View>
+                        <Text style={styles.downloadMeta}>{item.size_str} • {item.speed}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.downloadActions}>
+                      {item.status !== 'completed' && (
+                        <TouchableOpacity style={styles.miniBtn} onPress={() => togglePause(item.id)}>
+                          <Ionicons name={item.paused ? "play" : "pause"} size={16} color={colors.textPrimary} />
+                        </TouchableOpacity>
+                      )}
+                      <TouchableOpacity style={[styles.miniBtn, styles.removeBtn]} onPress={() => removeDownload(item.id)}>
+                        <Ionicons name="trash-outline" size={16} color={colors.systemRed} />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                   <View style={styles.progressContainer}>
                     <View style={styles.progressBar}>
-                      <View style={[styles.progressFill, { width: `${item.progress}%`, backgroundColor: item.status === 'completed' ? colors.systemGreen : colors.systemBlue }]} />
+                      <View style={[
+                        styles.progressFill, 
+                        { 
+                          width: `${item.progress}%`, 
+                          backgroundColor: item.status === 'completed' ? colors.systemGreen : (item.paused ? colors.systemOrange : colors.systemBlue) 
+                        }
+                      ]} />
                     </View>
                     <Text style={styles.progressText}>{Math.round(item.progress)}%</Text>
                   </View>
@@ -254,17 +308,11 @@ function MainScreen() {
 
       {/* Bottom Tabs */}
       <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-        <TouchableOpacity 
-          style={styles.tabItem} 
-          onPress={() => setActiveTab('search')}
-        >
+        <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('search')}>
           <Ionicons name="search" size={24} color={activeTab === 'search' ? colors.systemBlue : colors.textTertiary} />
           <Text style={[styles.tabText, activeTab === 'search' && styles.tabTextActive]}>Search</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.tabItem} 
-          onPress={() => setActiveTab('downloads')}
-        >
+        <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('downloads')}>
           <Ionicons name="download" size={24} color={activeTab === 'downloads' ? colors.systemBlue : colors.textTertiary} />
           <Text style={[styles.tabText, activeTab === 'downloads' && styles.tabTextActive]}>Downloads</Text>
         </TouchableOpacity>
@@ -429,19 +477,54 @@ const createStyles = (colors, insets) => StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  downloadCardPaused: {
+    borderColor: colors.separator,
   },
   downloadInfo: {
-    marginBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
   downloadTitle: {
     fontSize: 15,
     fontWeight: '600',
     color: colors.textPrimary,
-    marginBottom: 2,
+    marginBottom: 4,
+  },
+  statusBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  statusBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#fff',
+    textTransform: 'uppercase',
   },
   downloadMeta: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textSecondary,
+  },
+  downloadActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  miniBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 0.5,
+    borderColor: colors.separator,
+  },
+  removeBtn: {
+    borderColor: colors.systemRed + '40',
   },
   progressContainer: {
     flexDirection: 'row',
