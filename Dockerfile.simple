@@ -1,0 +1,33 @@
+# Torquest Linux Build - Simple Dockerfile
+FROM node:18-bullseye
+
+WORKDIR /app
+
+# Install fpm for .deb building
+RUN apt-get update && apt-get install -y \
+    rpm \
+    rpm2cpio \
+    ruby \
+    ruby-dev \
+    rubygems \
+    build-essential \
+    && gem install fpm \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy only essential files
+COPY package*.json ./
+COPY main.js ./
+COPY preload.js ./
+COPY index.html ./
+COPY styles.css ./
+COPY renderer.js ./
+COPY icon.png ./
+
+# Install dependencies
+RUN npm install
+
+# Build
+RUN npm run build:linux
+
+# Show output
+RUN ls -lh dist/

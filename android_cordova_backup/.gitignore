@@ -1,0 +1,31 @@
+# Cordova/Ionic
+node_modules/
+www/
+platforms/
+plugins/
+hooks/
+
+# Build
+*.log
+*.tmp
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Keystore
+*.keystore
+*.jks
+build.json
+
+# Resources (keep templates)
+# res/icon/
+# res/screen/

@@ -1,0 +1,9 @@
+{
+  "name": "torquest-android",
+  "version": "1.0.0",
+  "description": "Torquest Mobile App",
+  "private": true,
+  "scripts": {
+    "build": "echo 'Build complete'"
+  }
+}

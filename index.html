@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com; connect-src 'self' https://*;">
+  <title>Torquest</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <img src="icon.png" alt="" class="sidebar-logo-icon">
+          <span class="sidebar-logo-text">Torquest</span>
+        </div>
+        <button class="theme-btn" id="themeToggle" title="Toggle Theme">
+          <i class="fas fa-circle-half-stroke"></i>
+        </button>
+      </div>
+      
+      <div class="sidebar-nav">
+        <span class="sidebar-section-label">Library</span>
+        <button class="sidebar-item active" data-page="search">
+          <i class="fas fa-search"></i>
+          <span>Search</span>
+        </button>
+        <button class="sidebar-item" data-page="downloads">
+          <i class="fas fa-download"></i>
+          <span>Downloads</span>
+        </button>
+        <button class="sidebar-item" data-page="settings">
+          <i class="fas fa-gear"></i>
+          <span>Settings</span>
+        </button>
+      </div>
+      
+      <div class="sidebar-footer">
+        <div class="sidebar-version">
+          <img src="icon.png" alt="" class="sidebar-version-icon">
+          <div class="sidebar-version-info">
+            <div class="sidebar-version-name">Torquest</div>
+            <div class="sidebar-version-num">v1.1.0</div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Search Page -->
+      <div class="page search-page" id="searchPage">
+        <div class="search-container">
+          <div class="search-title-wrap">
+            <h1>Search</h1>
+            <p>Find torrents across reliable sources.</p>
+          </div>
+
+          <div class="search-bar-wrap">
+            <div class="search-input-wrap">
+              <span class="search-icon"><i class="fas fa-search"></i></span>
+              <input type="text" class="search-input" id="searchInput" placeholder="Search movies, games, software..." autocomplete="off">
+            </div>
+            <button class="search-btn" id="searchBtn">Search</button>
+          </div>
+
+          <div class="categories" id="categories">
+            <button class="cat-btn active" data-cat="all"><i class="fas fa-globe"></i> All</button>
+            <button class="cat-btn" data-cat="movies"><i class="fas fa-film"></i> Movies</button>
+            <button class="cat-btn" data-cat="tv"><i class="fas fa-tv"></i> TV Shows</button>
+            <button class="cat-btn" data-cat="music"><i class="fas fa-music"></i> Music</button>
+            <button class="cat-btn" data-cat="games"><i class="fas fa-gamepad"></i> Games</button>
+            <button class="cat-btn" data-cat="software"><i class="fas fa-laptop-code"></i> Software</button>
+            <button class="cat-btn" data-cat="ebooks"><i class="fas fa-book"></i> Ebooks</button>
+          </div>
+        </div>
+
+        <div class="source-bar" id="sourceBar" style="display: none;"></div>
+
+        <div class="results-wrap">
+          <div class="results-header">
+            <span>Name</span>
+            <span>Size</span>
+            <span>Date</span>
+            <span>Category</span>
+            <span>Seeds / Leeches</span>
+            <span>Source</span>
+          </div>
+          <div class="results-container" id="resultsContainer">
+            <div class="spinner-wrap" style="height: 100%;">
+              <div class="state-icon"><i class="fas fa-magnifying-glass" style="opacity: 0.2; font-size: 48px;"></i></div>
+              <p style="color: var(--text-tertiary); font-size: 13px;">Ready to search</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings Page -->
+      <div class="page settings-page" id="settingsPage" style="display: none;">
+        <div class="search-title-wrap">
+          <h1>Settings</h1>
+          <p>Configure your preferences.</p>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Appearance</div>
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <div class="settings-row-label">Theme</div>
+              <div class="settings-row-sub">Choose your preferred appearance.</div>
+            </div>
+            <div class="theme-selector">
+              <button class="theme-opt" data-theme="light">Light</button>
+              <button class="theme-opt" data-theme="dark">Dark</button>
+              <button class="theme-opt" data-theme="system">System</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Active Sources</div>
+          <div class="source-list">
+            <div class="source-pill"><i class="fas fa-check-circle dot"></i>ThePirateBay</div>
+            <div class="source-pill"><i class="fas fa-check-circle dot"></i>SolidTorrents</div>
+            <div class="source-pill"><i class="fas fa-check-circle dot"></i>YTS</div>
+            <div class="source-pill"><i class="fas fa-check-circle dot"></i>EZTV</div>
+            <div class="source-pill"><i class="fas fa-check-circle dot"></i>1337x</div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">About</div>
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <div class="settings-row-label">Version</div>
+              <div class="settings-row-sub">Torquest v1.1.0</div>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <div class="settings-row-label">Platform</div>
+              <div class="settings-row-sub">Electron, Node.js</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Downloads Page -->
+      <div class="page downloads-page" id="downloadsPage" style="display: none;">
+        <div class="search-title-wrap">
+          <h1>Downloads</h1>
+          <p>Manage your active torrent downloads.</p>
+        </div>
+
+        <div class="downloads-container" id="downloadsContainer">
+          <!-- Downloads will be injected here -->
+          <div class="spinner-wrap" style="height: 100%;">
+            <div class="state-icon"><i class="fas fa-arrow-down" style="opacity: 0.2; font-size: 48px;"></i></div>
+            <p style="color: var(--text-tertiary); font-size: 13px;">No active downloads</p>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Detail Panel (macOS Sheet) -->
+    <div class="detail-panel-overlay" id="detailOverlay" style="display: none;">
+      <aside class="detail-panel" id="detailPanel">
+        <div class="detail-header">
+          <div class="detail-title" id="detailTitle">Details</div>
+          <button class="detail-close" id="detailClose"><i class="fas fa-xmark"></i></button>
+        </div>
+        <div class="detail-body" id="detailBody"></div>
+        <div class="detail-actions">
+          <button class="action-btn secondary" id="copyMagnetBtn">Copy Link</button>
+          <button class="action-btn secondary" id="openMagnetBtn">Open Magnet</button>
+          <button class="action-btn primary" id="downloadBtn">Download</button>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

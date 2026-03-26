@@ -1,0 +1,16 @@
+# Node
+node_modules/
+dist/
+out/
+
+# Electron
+*.log
+*.asar
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
